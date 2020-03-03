@@ -78,7 +78,6 @@ export default {
       const { data: res } = await this.$axios.get('menus')
       if (res.meta.status !== 200) return this.$message.error(res.meta.msg)
       this.Menulist = res.data
-      console.log(res)
     },
     // 侧边栏展开
     handleOpen (key, keyPath) {

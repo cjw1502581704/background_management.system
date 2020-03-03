@@ -21,7 +21,7 @@
       </el-row>
       <!--      用户列表表格-->
       <el-table
-        :data="usersList" style="width: 100%" border>
+        :data="usersList" style="width: 100%" border stripe>
         <el-table-column type="index" label="#">
         </el-table-column>
         <el-table-column prop="username" label="姓名">
@@ -268,7 +268,6 @@ export default {
         const res = await this.$axios.put('users/' + this.editUserForm.id, {
           email: this.editUserForm.email, mobile: this.editUserForm.mobile
         })
-        console.log(res)
         if (res.status !== 200) {
           this.$message.error('更新失败')
         } else {
