@@ -50,11 +50,35 @@
             <!--            分配角色-->
             <el-tooltip class="item" effect="dark" content="分配角色" placement="top"
                         :enterable=false>
-              <el-button type="warning" icon="el-icon-setting" size="mini"></el-button>
+              <el-button type="warning" icon="el-icon-setting" size="mini" @click="allotRole(scope.row)"></el-button>
             </el-tooltip>
           </template>
         </el-table-column>
       </el-table>
+      <!--      分配角色对话框-->
+      <el-dialog
+        title="提示"
+        :visible.sync="allotRoledialogVisible"
+        width="30%" @close="allotRoleClose">
+        <div>
+          <p>当前的用户：{{allotRoleInfo.username}}</p>
+          <p>当前的角色：{{allotRoleInfo.role_name}}</p>
+          <p>分配新角色：
+            <el-select v-model="selectedRole" placeholder="请选择角色">
+              <el-option
+                v-for="item in rolesList"
+                :key="item.id"
+                :label="item.roleName"
+                :value="item.id">
+              </el-option>
+            </el-select>
+          </p>
+        </div>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="allotRoledialogVisible = false">取 消</el-button>
+          <el-button type="primary" @click="setAllotRole">确 定</el-button>
+        </span>
+      </el-dialog>
       <!--      表格下方分页管理-->
       <el-pagination
         @size-change="handleSizeChange"
@@ -187,10 +211,39 @@ export default {
           { required: true, message: '请输入手机号', trigger: 'blur' },
           { validator: checkMobile, trigger: 'blur' }
         ]
-      }
+      },
+      // 控制分配角色对话框
+      allotRoledialogVisible: false,
+      allotRoleInfo: {},
+      rolesList: [],
+      selectedRole: ''
     }
   },
   methods: {
+    // 分配角色对话框关闭
+    allotRoleClose () {
+      // 重置选项
+      this.selectedRole = ''
+    },
+    // 设置角色分配
+    async setAllotRole () {
+      const { data: res } = await this.$axios.put(`users/${this.allotRoleInfo.id}/role`, { rid: this.selectedRole })
+      if (res.meta.status !== 200) {
+        this.$message.error(res.meta.msg)
+      } else {
+        this.$message.success(res.meta.msg)
+        this.getUserList()
+        this.allotRoledialogVisible = false
+      }
+    },
+    // 分配角色对话框
+    async allotRole (userInfo) {
+      this.allotRoledialogVisible = true
+      this.allotRoleInfo = userInfo
+      // 请求角色列表
+      const { data: res } = await this.$axios.get('roles')
+      this.rolesList = res.data
+    },
     // 获取用户列表
     async getUserList () {
       const { data: res } = await this.$axios.get('users',

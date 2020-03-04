@@ -58,7 +58,7 @@
         <el-table-column prop="roleDesc" label="角色描述">
         </el-table-column>
         <el-table-column label="操作" width="180">
-          <template slot-scope="">
+          <template slot-scope="scope">
             <!--            编辑-->
             <el-button type="primary" icon="el-icon-edit" size="mini"
             ></el-button>
@@ -67,12 +67,32 @@
             <!--            分配权限-->
             <el-tooltip class="item" effect="dark" content="分配权限" placement="top"
                         :enterable=false>
-              <el-button type="warning" icon="el-icon-setting" size="mini"></el-button>
+              <el-button type="warning" icon="el-icon-setting" size="mini" @click="allotRights(scope.row)"></el-button>
             </el-tooltip>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
+    <!--    分配角色，树状复选框-->
+    <el-dialog
+      title="分配角色"
+      :visible.sync="allotRightsDialogVisible"
+      width="30%"
+      @close="rightsTreeClose">
+      <!--      树状列表-->
+      <el-tree :data="rightsTree"
+               :props="rightsTreeProps"
+               default-expand-all
+               show-checkbox
+               :default-checked-keys="treeKey"
+               node-key="id"
+               ref="rightsTreeRef"></el-tree>
+      <!--      底部按钮-->
+      <span slot="footer" class="dialog-footer">
+    <el-button @click="allotRightsDialogVisible = false">取 消</el-button>
+    <el-button type="primary" @click="submitAllotRights">确 定</el-button>
+  </span>
+    </el-dialog>
   </div>
 </template>
 
@@ -82,7 +102,16 @@ export default {
   data () {
     return {
       // 角色列表
-      roleList: []
+      roleList: [],
+      allotRightsDialogVisible: false,
+      rightsTree: [],
+      rightsTreeProps: {
+        children: 'children',
+        label: 'authName'
+      },
+      treeKey: [],
+      checkedId: [],
+      roleId: ''
     }
   },
   methods: {
@@ -90,7 +119,6 @@ export default {
     async getRoleList () {
       const { data: res } = await this.$axios.get('roles')
       this.roleList = res.data
-      console.log(this.roleList)
     },
     // 删除用户权限确认
     delItem3 (role, rightsId) {
@@ -115,6 +143,49 @@ export default {
           message: '已取消删除'
         })
       })
+    },
+    // 分配角色，树状复选框
+    async allotRights (role) {
+      this.roleId = role.id
+      // 打开对话框
+      this.allotRightsDialogVisible = true
+      // 发送请求，数据存入rightsTree
+      const { data: res } = await this.$axios.get('rights/tree')
+      if (res.meta.status !== 200) {
+        return this.$message.error('获取权限列表失败')
+      }
+      this.rightsTree = res.data
+      // 将三级节点id存入this.treeKey
+      this.getThreeRights(role, this.treeKey)
+    },
+    // 遍历权限列表，将三级权限存入数组
+    getThreeRights (child, arr) {
+      if (!child.children) {
+        return arr.push(child.id)
+      }
+      child.children.forEach(item => {
+        this.getThreeRights(item, arr)
+      })
+    },
+    // 点击分配权限的确定
+    async submitAllotRights () {
+      this.checkedId = [...this.$refs.rightsTreeRef.getCheckedKeys(),
+        ...this.$refs.rightsTreeRef.getHalfCheckedKeys()]
+      // 转为，分割字符串
+      const idStr = this.checkedId.join(',')
+      // 发送请求
+      const { data: res } = await this.$axios.post(`roles/${this.roleId}/rights`, { rids: idStr })
+      if (res.meta.status !== 200) {
+        this.$message.error('更新失败')
+      } else {
+        this.$message.success('更新成功')
+        this.getRoleList()
+      }
+      this.allotRightsDialogVisible = false
+    },
+    // 清空默认勾选暂存区
+    rightsTreeClose () {
+      this.treeKey = []
     }
   },
   created () {
