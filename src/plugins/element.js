@@ -3,10 +3,14 @@ import {
   Button, Form, FormItem, Input, Message, Container, Header,
   Aside, Main, Menu, MenuItem, Submenu, Breadcrumb, BreadcrumbItem,
   Card, Table, TableColumn, Switch, Row, Col, Tooltip, Pagination,
-  Dialog, MessageBox, Tag, Tree, Select, Option, Cascader
+  Dialog, MessageBox, Tag, Tree, Select, Option, Cascader, Alert,
+  Tabs, TabPane
 } from 'element-ui'
 
 Vue.use(Button)
+Vue.use(Tabs)
+Vue.use(TabPane)
+Vue.use(Alert)
 Vue.use(Cascader)
 Vue.use(Option)
 Vue.use(Select)
