@@ -11,4 +11,6 @@ body,
 .el-table {
     margin: 15px 0;
 }
-
+.el-steps {
+    margin: 15px 0;
+}
