@@ -41,6 +41,29 @@
             <el-table-column
               type="expand"
               width="80">
+              <template slot-scope="scope">
+                <!--                已存在标签-->
+                <el-tag
+                  :key="i"
+                  v-for="(tag,i) in scope.row.attr_vals"
+                  closable
+                  @close="handleTagClose(scope.row,i)">
+                  {{tag}}
+                </el-tag>
+                <!--                添加标签-->
+                <el-input
+                  class="input-new-tag"
+                  v-if="scope.row.inputVisible"
+                  v-model="scope.row.inputValue"
+                  ref="saveTagInput"
+                  size="small"
+                  @keyup.enter.native="handleInputConfirm(scope.row)"
+                  @blur="handleInputConfirm(scope.row)"
+                >
+                </el-input>
+                <el-button v-else class="button-new-tag" size="small" @click="showInput(scope.row)">+ New Tag
+                </el-button>
+              </template>
             </el-table-column>
             <!--            参数列-->
             <el-table-column
@@ -75,6 +98,29 @@
             <el-table-column
               type="expand"
               width="80">
+              <template slot-scope="scope">
+                <!--                已存在标签-->
+                <el-tag
+                  :key="i"
+                  v-for="(tag,i) in scope.row.attr_vals"
+                  closable
+                  @close="handleTagClose(scope.row,i)">
+                  {{tag}}
+                </el-tag>
+                <!--                添加标签-->
+                <el-input
+                  class="input-new-tag"
+                  v-if="scope.row.inputVisible"
+                  v-model="scope.row.inputValue"
+                  ref="saveTagInput"
+                  size="small"
+                  @keyup.enter.native="handleInputConfirm(scope.row)"
+                  @blur="handleInputConfirm(scope.row)"
+                >
+                </el-input>
+                <el-button v-else class="button-new-tag" size="small" @click="showInput(scope.row)">+ New Tag
+                </el-button>
+              </template>
             </el-table-column>
             <!--            排序列-->
             <el-table-column
@@ -185,6 +231,9 @@ export default {
     // 选择分类时获取tab数据
     cateCascaderChange () {
       this.getTabData()
+      if (this.selectedKey.length !== 3) {
+        this.tabData = []
+      }
     },
     // 获取tab数据
     async getTabData () {
@@ -192,11 +241,52 @@ export default {
       if (res.meta.status !== 200) {
         this.$message.error('获取数据失败')
       }
+      // attr_vals转为tag标签数组
       res.data.forEach(item => {
-        item.attr_vals = item.attr_vals.split(' ')
+        item.attr_vals = item.attr_vals.length !== 0 ? item.attr_vals.split(' ') : []
+        item.inputVisible = false
+        item.inputValue = ''
       })
       console.log(res.data)
       this.tabData = res.data
+    },
+    // 点击添加tag标签
+    showInput (row) {
+      // 清空输入框
+      row.inputValue = ''
+      row.inputVisible = true
+      // 输入框自动获得焦点
+      this.$nextTick(_ => {
+        this.$refs.saveTagInput.$refs.input.focus()
+      })
+    },
+    // 添加标签输入框失去焦点
+    handleInputConfirm (row) {
+      row.inputVisible = false
+      if (row.inputValue.trim().length === 0) {
+        // 没有输入内容
+        row.inputValue = ''
+        return null
+      }
+      // 新tag值加入vals数组中
+      row.attr_vals.push(row.inputValue.trim())
+      row.inputValue = ''
+      this.handleTag(row)
+    },
+    async handleTag (row) {
+      const { data: res } = await this.$axios.put(`categories/${this.selectedKey[2]}/attributes/${row.attr_id}`,
+        {
+          attr_name: row.attr_name,
+          attr_sel: row.attr_sel,
+          attr_vals: row.attr_vals.join(' ')
+        })
+      if (res.meta.status !== 200) {
+        return this.$message.error('更新失败')
+      }
+    },
+    handleTagClose (row, i) {
+      row.attr_vals.splice(i, 1)
+      this.handleTag(row)
     },
     // 载入商品分类
     async getCateList () {
@@ -307,5 +397,13 @@ export default {
 <style lang="less" scoped>
   .mar15 {
     margin: 15px 0;
+  }
+
+  .el-tag {
+    margin: 5px 5px;
+  }
+
+  .input-new-tag {
+    width: 120px;
   }
 </style>
