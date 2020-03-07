@@ -43,22 +43,66 @@
             </el-form-item>
             <el-form-item label="商品分类" prop="goods_cat">
               <el-cascader
-                v-model="selectedCatList"
+                v-model="addForm.goods_cat"
                 :options="goodCatList"
                 :props=catProps></el-cascader>
             </el-form-item>
           </el-tab-pane>
-          <el-tab-pane name='1' label="商品参数">商品参数</el-tab-pane>
-          <el-tab-pane name='2' label="商品属性">商品属性</el-tab-pane>
-          <el-tab-pane name='3' label="商品图片">商品图片</el-tab-pane>
-          <el-tab-pane name='4' label="商品内容">商品内容</el-tab-pane>
+          <el-tab-pane name='1' label="商品参数">
+            <el-form-item :label='item.attr_name' v-for="item in manyParamsTag" :key="item.attr_id">
+              <!--            动态参数复选框-->
+              <el-checkbox-group v-model="item.attr_vals">
+                <el-checkbox :label="k" v-for="(k,i) in item.attr_vals" :key="i" border></el-checkbox>
+              </el-checkbox-group>
+            </el-form-item>
+          </el-tab-pane>
+          <el-tab-pane name='2' label="商品属性">
+            <el-form-item :label='item.attr_name' v-for="item in onlyParamsDate" :key="item.attr_id">
+              <!--           静态属性输入框-->
+              <el-input v-model="item.attr_vals">
+              </el-input>
+            </el-form-item>
+          </el-tab-pane>
+          <el-tab-pane name='3' label="商品图片">
+            <!--             上传图片-->
+            <el-upload
+              :action="uploadAction"
+              :on-preview="handlePreview"
+              :on-remove="handleRemove"
+              :file-list="uploadPicFileList"
+              list-type="picture" :headers="uploadPicHeader" :on-success="upPicSuccess">
+              <el-button size="small" type="primary">点击上传</el-button>
+              <div slot="tip" class="el-upload__tip">只能上传jpg/png文件，且不超过500kb</div>
+            </el-upload>
+          </el-tab-pane>
+          <el-tab-pane name='4' label="商品内容">
+            <!--            富文本编辑器组件-->
+            <quill-editor v-model="addForm.goods_introduce">
+              <!--                          ref="myQuillEditor"-->
+              <!--                          :options="editorOption"-->
+              <!--                          @blur="onEditorBlur($event)"-->
+              <!--                          @focus="onEditorFocus($event)"-->
+              <!--                          @ready="onEditorReady($event)"-->
+
+            </quill-editor>
+            <!--            添加商品按钮-->
+            <el-button type="primary" class="addBtn" @click="addGoods">添加商品</el-button>
+          </el-tab-pane>
         </el-tabs>
       </el-form>
+      <el-dialog
+        :visible.sync="pervImgDialogVisible"
+        width="50%">
+        <img class="prevImg" :src="prevImg"/>
+      </el-dialog>
     </el-card>
   </div>
 </template>
 
 <script>
+// 导入lodash
+import _ from 'lodash'
+
 export default {
   data () {
     return {
@@ -68,7 +112,15 @@ export default {
         goods_name: '',
         goods_price: 0,
         goods_weight: 0,
-        goods_number: 0
+        goods_number: 0,
+        // 选中的商品分类
+        goods_cat: [],
+        // 图片
+        pics: [],
+        // 详情
+        goods_introduce: '',
+        // 商品参数(数组)
+        attrs: []
       },
       addFormRules: {
         goods_name: [
@@ -99,10 +151,22 @@ export default {
       },
       // 所有商品分类列表
       goodCatList: [],
-      // 选中的商品分类
-      selectedCatList: [],
-      // 商品参数
-      manyParamsTag: []
+      // 商品动态参数
+      manyParamsTag: [],
+      // 商品静态属性
+      onlyParamsDate: [],
+      // 上传图片的目的地址
+      uploadAction: 'http://127.0.0.1:8888/api/private/v1/upload',
+      // 上传的文件列表
+      uploadPicFileList: [],
+      // 上传图片头部
+      uploadPicHeader: {
+        Authorization: window.sessionStorage.getItem('token')
+      },
+      // 预览图片对话框
+      pervImgDialogVisible: false,
+      // 预览图片地址
+      prevImg: ''
     }
   },
   methods: {
@@ -112,12 +176,11 @@ export default {
         return this.$message.error(res.meta.msg)
       }
       this.goodCatList = res.data
-      console.log(res)
     },
     // 切换tab前的验证
     tabLeave (activeName, oldActiveName) {
       // 必须选择商品分类，才能进入商品参数tab，否则参数无法获取
-      if (activeName === '1' && !this.cateId) {
+      if ((activeName === '1' || activeName === '2') && !this.cateId) {
         this.$message.info('请先选择商品分类')
         return false
       }
@@ -132,9 +195,76 @@ export default {
         if (res.meta.status !== 200) {
           return this.$message.error(res.meta.msg)
         }
+        // vals转为数组格式
+        res.data.forEach(item => {
+          item.attr_vals = item.attr_vals.length !== 0 ? item.attr_vals.split(' ') : []
+        })
         this.manyParamsTag = res.data
-        console.log(res)
+      } else if (this.activeIndex === '2') {
+        // 获取静态属性
+        const { data: res } = await this.$axios.get(`categories/${this.cateId}/attributes`,
+          { params: { sel: 'only' } })
+        if (res.meta.status !== 200) {
+          return this.$message.error(res.meta.msg)
+        }
+        this.onlyParamsDate = res.data
       }
+    },
+    // 预览已上传文件
+    handlePreview (prev) {
+      this.prevImg = prev.response.data.url
+      this.pervImgDialogVisible = true
+    },
+    // 移除已上传文件
+    handleRemove (imgInfo) {
+      // 比对要删除的和已上传的tmp_path,找到其索引
+      const removeImg = imgInfo.response.data.tmp_path
+      const i = this.addForm.pics.findIndex(item =>
+        item.pic === removeImg
+      )
+      // 从暂存区中删除
+      this.addForm.pics.splice(i, 1)
+    },
+    // 图片成功上传触发
+    upPicSuccess (res) {
+      const resInfo = { pic: res.data.tmp_path }
+      this.addForm.pics.push(resInfo)
+      console.log(this.addForm)
+    },
+    // 添加商品
+    addGoods () {
+      this.$refs.ruleFormRef.validate(async valid => {
+        if (!valid) {
+          // 表单验证，错误时
+          return this.$message.error('请确认表单正确填写')
+        }
+        // 深拷贝出Form方便操作，并作为提交数据
+        const Form = _.cloneDeep(this.addForm)
+        // 商品分类goods_cat数组转为String
+        Form.goods_cat = Form.goods_cat.join(',')
+        // 商品动态参数处理
+        this.manyParamsTag.forEach(item => {
+          const manyDate = {
+            attr_id: item.attr_id,
+            attr_value: item.attr_vals.join(' ')
+          }
+          Form.attrs.push(manyDate)
+        })
+        // 商品静态属性处理
+        this.onlyParamsDate.forEach(item => {
+          const manyDate = {
+            attr_id: item.attr_id,
+            attr_value: item.attr_vals
+          }
+          Form.attrs.push(manyDate)
+        })
+        const { data: res } = await this.$axios.post('goods', Form)
+        if (res.meta.status !== 201) {
+          return this.$message.error('添加商品失败')
+        }
+        this.$message.success('添加商品成功')
+        this.$router.push('/goods')
+      })
     }
   },
   created () {
@@ -142,8 +272,8 @@ export default {
   },
   computed: {
     cateId () {
-      if (this.selectedCatList.length === 3) {
-        return this.selectedCatList[2]
+      if (this.addForm.goods_cat.length === 3) {
+        return this.addForm.goods_cat[2]
       } else {
         return null
       }
@@ -155,5 +285,17 @@ export default {
 <style lang="less" scoped>
   .el-step__title {
     font-size: 14px;
+  }
+
+  .el-checkbox {
+    margin: 0 10px 0 0 !important;
+  }
+
+  .prevImg {
+    width: 100%;
+  }
+
+  .addBtn {
+    margin: 15px 0;
   }
 </style>
