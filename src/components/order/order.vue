@@ -43,9 +43,9 @@
         </el-table-column>
         <el-table-column label="操作">
           <template>
-            <el-button type="primary" size="mini" icon="el-icon-edit">
+            <el-button type="primary" size="mini" icon="el-icon-edit" @click="addressDialogVisible=true">
             </el-button>
-            <el-button type="success" size="mini" icon="el-icon-location">
+            <el-button type="success" size="mini" icon="el-icon-location" @click="showExpress">
             </el-button>
           </template>
         </el-table-column>
@@ -61,6 +61,48 @@
         :total="total">
       </el-pagination>
     </el-card>
+    <!--    修改订单地址-->
+    <el-dialog
+      title="修改订单地址"
+      :visible.sync="addressDialogVisible"
+      width="50%" @close="setAddressClose">
+      <el-form :model="address" :rules="addressRules" ref="addressRef" label-width="100px">
+        <!--            省市区级联选择-->
+        <el-form-item label="省/市/区" prop="address1">
+          <el-cascader
+            v-model="address.address1"
+            :options="CityData"
+            :props="addressProp"></el-cascader>
+        </el-form-item>
+        <!--      详细地址-->
+        <el-form-item label="详细地址" prop="address2">
+          <el-input v-model="address.address2"></el-input>
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+    <el-button @click="addressDialogVisible = false">取 消</el-button>
+    <el-button type="primary" @click="addressDialogVisible = false">确 定</el-button>
+  </span>
+    </el-dialog>
+    <!--    查看物流信息-->
+    <el-dialog
+      title="物流信息"
+      :visible.sync="expressDialogVisible"
+      width="50%">
+      <!--      时间线-->
+      <el-timeline>
+        <el-timeline-item
+          v-for="(activity, index) in expressInfo"
+          :key="index"
+          :timestamp="activity.time">
+          {{activity.context}}
+        </el-timeline-item>
+      </el-timeline>
+      <span slot="footer" class="dialog-footer">
+    <el-button @click="expressDialogVisible = false">取 消</el-button>
+    <el-button type="primary" @click="expressDialogVisible = false">确 定</el-button>
+  </span>
+    </el-dialog>
   </div>
 </template>
 
@@ -80,7 +122,35 @@ export default {
       // 订单总数
       total: 0,
       // 订单列表
-      orderList: []
+      orderList: [],
+      CityData,
+      // 修改订单地址对话框
+      addressDialogVisible: false,
+      // 订单地址
+      address: {
+        address1: [],
+        address2: ''
+      },
+      // 省市区级联选框prop
+      addressProp: {
+        expandTrigger: 'hover',
+        value: 'value',
+        label: 'label',
+        children: 'children'
+      },
+      // 订单地址表单规则
+      addressRules: {
+        address1: [
+          { required: true, message: '请选择地区', trigger: 'blur' }
+        ],
+        address2: [
+          { required: true, message: '请输入详细地址', trigger: 'blur' }
+        ]
+      },
+      // 物流信息对话框
+      expressDialogVisible: false,
+      // 物流信息
+      expressInfo: {}
     }
   },
   methods: {
@@ -101,6 +171,20 @@ export default {
     handleCurrentChange (nowpage) {
       this.queryInfo.pagenum = nowpage
       this.getOrderList()
+    },
+    // 修改订单地址对话框关闭
+    setAddressClose () {
+      this.$refs.addressRef.resetFields()
+    },
+    // 查看物流进度
+    async showExpress () {
+      const { data: res } = await this.$axios.get('/kuaidi/804909574412544580')
+      if (res.meta.status !== 200) {
+        return this.$message.error('获取物流信息失败')
+      }
+      this.expressInfo = res.data
+      this.expressDialogVisible = true
+      console.log(this.expressInfo)
     }
   },
   created () {
@@ -110,4 +194,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
+  .el-cascader {
+    width: 100%;
+  }
 </style>
