@@ -1,24 +1,5 @@
 # vue_porject
 
-## Project setup
-```
-npm install
-```
-
-### Compiles and hot-reloads for development
-```
-npm run serve
-```
-
-### Compiles and minifies for production
-```
-npm run build
-```
-
-### Lints and fixes files
-```
-npm run lint
-```
-
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+## 主要用于对商品数据管理
+### Vue+Element-UI+Axios
+### 可以查看并管理包括商品参数，价格，物流信息，销售折线图表等信息
